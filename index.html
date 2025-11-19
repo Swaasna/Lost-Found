@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lost and Found Items</title>
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+<nav class="menu">
+    <img src="./img.jpeg" style="height: 50px;">
+  <button id="menuUpload">Upload Item</button>
+  <button id="menuView">View Items</button>
+</nav>
+
+<section id="uploadSection" style="display:none;">
+  <div class="up">
+  <h2>Upload Lost Item</h2>
+  <form id="itemForm">
+    <input type="hidden" id="itemIndex" value="" />
+    <label for="itemName">Item Name:</label>
+    <input type="text" id="itemName" required />
+    <br><br>
+    <label for="itemCategory">Category:</label>
+    <select id="itemCategory" required>
+      <option value="">--Select category--</option>
+      <option>Electronics</option>
+      <option>Clothing</option>
+      <option>Documents</option>
+      <option>Accessories</option>
+      <option>Other</option>
+    </select>
+    <br><br>
+    <label for="itemDate">Date Lost:</label>
+    <input type="date" id="itemDate" required />
+    <br><br>
+    <label for="itemDescription">Description:</label><br>
+    <textarea id="itemDescription" rows="3" required></textarea>
+    <br><br>
+    <label for="itemImage">Picture (optional):</label>
+    <input type="file" id="itemImage" accept="image/*" />
+    <br><br>
+    <label for="contactDetails">Contact Details:</label>
+    <input type="email" id="contactDetails" placeholder="Email" required />
+    <br><br>
+    <div class="buttons">
+      <button type="submit" class="btn">Save Item</button>
+      <button type="button" id="cancelEdit" style="display:none;" class="btn">Cancel Edit</button>
+    </div>
+  </form>
+  </div>
+</section>
+
+<section id="viewSection" style="display:none;">
+  <h2>Lost Items</h2>
+  <div id="itemsContainer"></div>
+  <button id="btnAddNew" class="btn">Upload Another Item</button>
+</section>
+
+<script>
+  let items = JSON.parse(localStorage.getItem('lostItems') || '[]');
+
+  const uploadSection = document.getElementById('uploadSection');
+  const viewSection = document.getElementById('viewSection');
+  const menuUpload = document.getElementById('menuUpload');
+  const menuView = document.getElementById('menuView');
+  const itemForm = document.getElementById('itemForm');
+  const itemsContainer = document.getElementById('itemsContainer');
+  const btnAddNew = document.getElementById('btnAddNew');
+  const cancelEdit = document.getElementById('cancelEdit');
+
+  function showUpload() {
+    uploadSection.style.display = 'block';
+    viewSection.style.display = 'none';
+    clearForm();
+  }
+
+  function showView() {
+    uploadSection.style.display = 'none';
+    viewSection.style.display = 'block';
+    renderItems();
+  }
+
+  menuUpload.onclick = showUpload;
+  menuView.onclick = showView;
+  btnAddNew.onclick = showUpload;
+
+  cancelEdit.onclick = () => {
+    clearForm();
+    cancelEdit.style.display = 'none';
+  };
+
+  function clearForm() {
+    itemForm.reset();
+    document.getElementById('itemIndex').value = '';
+    cancelEdit.style.display = 'none';
+  }
+
+  function renderItems() {
+    itemsContainer.innerHTML = '';
+    if (items.length === 0) {
+      itemsContainer.innerHTML = '<p>No lost items uploaded yet.</p>';
+      return;
+    }
+    items.forEach((item, index) => {
+      const itemDiv = document.createElement('div');
+      itemDiv.className = 'item';
+
+      let imgHTML = '';
+      if (item.imageData) {
+        imgHTML = `<img src="${item.imageData}" alt="Item Image"/>`;
+      }
+
+      let repliesHTML = '';
+      if (item.replies && item.replies.length > 0) {
+        repliesHTML += '<div class="replies"><strong>Replies (Item Found):</strong>';
+        item.replies.forEach(reply => {
+          repliesHTML += `<div class="reply">${reply}</div>`;
+        });
+        repliesHTML += '</div>';
+      }
+
+      itemDiv.innerHTML = `
+        <strong>Name:</strong> ${item.name} <br /><br>
+        <strong>Category:</strong> ${item.category} <br /><br>
+        <strong>Date Lost:</strong> ${item.date} <br /><br>
+        <strong>Description:</strong> ${item.description} <br />
+        ${imgHTML}
+        <br><strong>Contact:</strong> ${item.contact} <br /><br>
+        <div class="buttons">
+          <button onclick="editItem(${index})">Edit</button>
+          <button onclick="deleteItem(${index})">Delete</button>
+        </div>
+        <br>
+        <div>
+          <label for="replyInput${index}">Found this item? Reply below:</label>
+          <input type="text" id="replyInput${index}" placeholder="Your contact info/reply" /><br>
+          <button onclick="addReply(${index})">Reply</button>
+        </div>
+        <br><br>
+        ${repliesHTML}
+      `;
+
+      itemsContainer.appendChild(itemDiv);
+    });
+  }
+
+  function editItem(index) {
+    const item = items[index];
+    document.getElementById('itemName').value = item.name;
+    document.getElementById('itemCategory').value = item.category;
+    document.getElementById('itemDate').value = item.date;
+    document.getElementById('itemDescription').value = item.description;
+    document.getElementById('contactDetails').value = item.contact;
+    document.getElementById('itemIndex').value = index;
+    cancelEdit.style.display = 'inline';
+    uploadSection.style.display = 'block';
+    viewSection.style.display = 'none';
+  }
+
+  function deleteItem(index) {
+    if (confirm('Are you sure you want to delete this item?')) {
+      items.splice(index, 1);
+      localStorage.setItem('lostItems', JSON.stringify(items));
+      renderItems();
+    }
+  }
+
+  function addReply(index) {
+    const replyInput = document.getElementById(`replyInput${index}`);
+    const replyText = replyInput.value.trim();
+    if (!replyText) {
+      alert('Please enter a reply.');
+      return;
+    }
+    if (!items[index].replies) {
+      items[index].replies = [];
+    }
+    items[index].replies.push(replyText);
+    localStorage.setItem('lostItems', JSON.stringify(items));
+    replyInput.value = '';
+    renderItems();
+  }
+
+  itemForm.addEventListener('submit', event => {
+    event.preventDefault();
+
+    const name = document.getElementById('itemName').value.trim();
+    const category = document.getElementById('itemCategory').value;
+    const date = document.getElementById('itemDate').value;
+    const description = document.getElementById('itemDescription').value.trim();
+    const contact = document.getElementById('contactDetails').value.trim();
+    const index = document.getElementById('itemIndex').value;
+
+    const fileInput = document.getElementById('itemImage');
+    const file = fileInput.files[0];
+
+    if (file && !file.type.startsWith('image/')) {
+      alert('Only image files allowed for the picture.');
+      return;
+    }
+
+    function saveItem(imageDataUrl) {
+      const newItem = { name, category, date, description, contact, imageData: imageDataUrl, replies: [] };
+      if (index === '') {
+        // New item
+        items.push(newItem);
+      } else {
+        // Edit existing item; replace completely
+        items[index] = newItem;
+      }
+      localStorage.setItem('lostItems', JSON.stringify(items));
+      clearForm();
+      showView();
+    }
+
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        saveItem(e.target.result);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      if (index !== '') {
+        saveItem(items[index].imageData || '');
+      } else {
+        saveItem('');
+      }
+    }
+  });
+
+  // Initialize: show upload by default
+  showUpload();
+</script>
+
+</body>
+</html>
